@@ -4,15 +4,15 @@
 
 import 'package:flutter_tools/src/base/file_system.dart';
 import 'package:flutter_tools/src/base/platform.dart';
-import 'package:flutter_tools/src/features.dart';
+import 'package:flutter_tools/src/version.dart';
 import 'package:flutter_tools/src/web/chrome.dart';
 import 'package:flutter_tools/src/web/workflow.dart';
 import 'package:mockito/mockito.dart';
 import 'package:process/process.dart';
 
-import '../../src/common.dart';
-import '../../src/context.dart';
-import '../../src/testbed.dart';
+import '../src/common.dart';
+import '../src/context.dart';
+import '../src/testbed.dart';
 
 void main() {
   group('WebWorkflow', () {
@@ -22,9 +22,13 @@ void main() {
     MockPlatform linux;
     MockPlatform macos;
     MockProcessManager mockProcessManager;
+    MockFlutterVersion unstable;
+    MockFlutterVersion stable;
     WebWorkflow workflow;
 
     setUpAll(() {
+      unstable = MockFlutterVersion(false);
+      stable = MockFlutterVersion(true);
       notSupported = MockPlatform(linux: false, windows: false, macos: false);
       windows = MockPlatform(windows: true);
       linux = MockPlatform(linux: true);
@@ -35,7 +39,7 @@ void main() {
         fs.file('chrome').createSync();
         when(mockProcessManager.canRun('chrome')).thenReturn(true);
       }, overrides: <Type, Generator>{
-        FeatureFlags: () => TestFeatureFlags(isWebEnabled: true),
+        FlutterVersion: () => unstable,
         ProcessManager: () => mockProcessManager,
       });
     });
@@ -68,34 +72,46 @@ void main() {
     }));
 
     test('does not apply on other platforms', () => testbed.run(() {
+      when(mockProcessManager.canRun('chrome')).thenReturn(false);
       expect(workflow.appliesToHostPlatform, false);
+      expect(workflow.canLaunchDevices, false);
+      expect(workflow.canListDevices, false);
+      expect(workflow.canListEmulators, false);
     }, overrides: <Type, Generator>{
       Platform: () => notSupported,
     }));
 
-    test('does not apply if feature flag is disabled', () => testbed.run(() {
+    test('does not apply on stable branch', () => testbed.run(() {
       expect(workflow.appliesToHostPlatform, false);
       expect(workflow.canLaunchDevices, false);
       expect(workflow.canListDevices, false);
       expect(workflow.canListEmulators, false);
     }, overrides: <Type, Generator>{
       Platform: () => macos,
-      FeatureFlags: () => TestFeatureFlags(isWebEnabled: false),
+      FlutterVersion: () => stable,
     }));
   });
+}
+
+class MockFlutterVersion extends Mock implements FlutterVersion {
+  MockFlutterVersion(this.isStable);
+
+  final bool isStable;
+
+  @override
+  bool get isMaster => !isStable;
 }
 
 class MockProcessManager extends Mock implements ProcessManager {}
 
 class MockPlatform extends Mock implements Platform {
-  MockPlatform({
-    this.windows = false,
-    this.macos = false,
-    this.linux = false,
-    this.environment = const <String, String>{
-      kChromeEnvironment: 'chrome',
-    },
-  });
+  MockPlatform(
+      {this.windows = false,
+      this.macos = false,
+      this.linux = false,
+      this.environment = const <String, String>{
+        kChromeEnvironment: 'chrome',
+      }});
 
   final bool windows;
   final bool macos;

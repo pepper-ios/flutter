@@ -5,47 +5,32 @@
 import 'dart:async';
 
 import '../cache.dart';
-import '../features.dart';
 import '../globals.dart';
 import '../runner/flutter_command.dart';
 import '../version.dart';
 
 class PrecacheCommand extends FlutterCommand {
-  PrecacheCommand({bool verboseHelp = false}) {
+  PrecacheCommand() {
     argParser.addFlag('all-platforms', abbr: 'a', negatable: false,
-        help: 'Precache artifacts for all host platforms.');
+        help: 'Precache artifacts for all platforms.');
     argParser.addFlag('force', abbr: 'f', negatable: false,
         help: 'Force downloading of artifacts.');
     argParser.addFlag('android', negatable: true, defaultsTo: true,
-        help: 'Precache artifacts for Android development.',
-        hide: verboseHelp);
-    argParser.addFlag('android_gen_snapshot', negatable: true, defaultsTo: true,
-        help: 'Precache gen_snapshot for Android development.',
-        hide: !verboseHelp);
-    argParser.addFlag('android_maven', negatable: true, defaultsTo: true,
-        help: 'Precache Gradle dependencies for Android development.',
-        hide: !verboseHelp);
-    argParser.addFlag('android_internal_build', negatable: true, defaultsTo: false,
-        help: 'Precache dependencies for internal Android development.',
-        hide: !verboseHelp);
+        help: 'Precache artifacts for Android development');
     argParser.addFlag('ios', negatable: true, defaultsTo: true,
-        help: 'Precache artifacts for iOS development.');
+        help: 'Precache artifacts for iOS developemnt');
     argParser.addFlag('web', negatable: true, defaultsTo: false,
-        help: 'Precache artifacts for web development.');
+        help: 'Precache artifacts for web development');
     argParser.addFlag('linux', negatable: true, defaultsTo: false,
-        help: 'Precache artifacts for Linux desktop development.');
+        help: 'Precache artifacts for linux desktop development');
     argParser.addFlag('windows', negatable: true, defaultsTo: false,
-        help: 'Precache artifacts for Windows desktop development.');
+        help: 'Precache artifacts for windows desktop development');
     argParser.addFlag('macos', negatable: true, defaultsTo: false,
-        help: 'Precache artifacts for macOS desktop development.');
+        help: 'Precache artifacts for macOS desktop development');
     argParser.addFlag('fuchsia', negatable: true, defaultsTo: false,
-        help: 'Precache artifacts for Fuchsia development.');
+        help: 'Precache artifacts for Fuchsia development');
     argParser.addFlag('universal', negatable: true, defaultsTo: true,
-        help: 'Precache artifacts required for any development platform.');
-    argParser.addFlag('flutter_runner', negatable: true, defaultsTo: false,
-        help: 'Precache the flutter runner artifacts.', hide: true);
-    argParser.addFlag('use-unsigned-mac-binaries', negatable: true, defaultsTo: false,
-        help: 'Precache the unsigned mac binaries when available.', hide: true);
+        help: 'Precache artifacts required for all developments');
   }
 
   @override
@@ -59,11 +44,8 @@ class PrecacheCommand extends FlutterCommand {
 
   @override
   Future<FlutterCommandResult> runCommand() async {
-    if (boolArg('all-platforms')) {
+    if (argResults['all-platforms']) {
       cache.includeAllPlatforms = true;
-    }
-    if (boolArg('use-unsigned-mac-binaries')) {
-      cache.useUnsignedMacBinaries = true;
     }
     final Set<DevelopmentArtifact> requiredArtifacts = <DevelopmentArtifact>{};
     for (DevelopmentArtifact artifact in DevelopmentArtifact.values) {
@@ -71,18 +53,11 @@ class PrecacheCommand extends FlutterCommand {
       if (!FlutterVersion.instance.isMaster && artifact.unstable) {
         continue;
       }
-      if (artifact.feature != null && !featureFlags.isEnabled(artifact.feature)) {
-        continue;
-      }
-      if (boolArg(artifact.name)) {
-        requiredArtifacts.add(artifact);
-      }
-      // The `android` flag expands to android_gen_snapshot, android_maven, android_internal_build.
-      if (artifact.name.startsWith('android_') && boolArg('android')) {
+      if (argResults[artifact.name]) {
         requiredArtifacts.add(artifact);
       }
     }
-    final bool forceUpdate = boolArg('force');
+    final bool forceUpdate = argResults['force'];
     if (forceUpdate || !cache.isUpToDate()) {
       await cache.updateAll(requiredArtifacts);
     } else {
